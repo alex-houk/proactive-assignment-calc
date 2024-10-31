@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Tutor Assignment</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        label { display: block; margin-top: 10px; }
+        input[type="text"], input[type="number"], select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .hidden { display: none; }
+        .student-container { margin-top: 20px; }
+        .tutor-output { margin-top: 20px; }
+        .assignment { margin: 5px 0; }
+        .error { color: red; }
+        table { width: 100%; margin-top: 10px; }
+        td { padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Proactive Tutoring Assignments</h1>
+    
+    <label>Which video conferencing platform is this session on:</label>
+    <select id="sessionType">
+        <option value="">Select...</option>
+        <option value="zoom">Zoom</option>
+        <option value="pencil">Pencil</option>
+    </select>
+    
+    <label>Enter the proactive student list (comma-separated):</label>
+    <input type="text" id="studentList" />
+    
+    <button id="nextStep" onclick="nextStep()">Generate Attendance List</button>
+
+    <div id="zoomInputs" class="hidden student-container">
+        <h2>Zoom Room Assignment</h2>
+        <div id="zoomStudents"></div>
+        <button onclick="finalizeZoom()">Finalize Zoom Assignments</button>
+    </div>
+
+    <div id="pencilInputs" class="hidden student-container">
+        <h2>Pencil Online Status</h2>
+        <div id="pencilStudents"></div>
+        <button onclick="finalizePencil()">Finalize Pencil Assignments</button>
+    </div>
+
+    <div id="output" class="tutor-output hidden"></div>
+
+    <script>
+        let students = [];
+        let sessionType;
+        let roomStatus = {};
+        let onlineStatus = {};
+
+        function nextStep() {
+            sessionType = document.getElementById("sessionType").value;
+
+            if (!sessionType) {
+                alert("Please select a video conferencing platform.");
+                return;
+            }
+
+            const studentList = document.getElementById("studentList").value;
+
+            students = studentList.split(",").map(s => s.trim());
+            document.getElementById("studentList").value = ""; // Clear input
+            
+            if (sessionType === 'zoom') {
+                document.getElementById("zoomInputs").classList.remove("hidden");
+                showZoomInputs();
+            } else {
+                document.getElementById("pencilInputs").classList.remove("hidden");
+                showPencilInputs();
+            }
+        }
+
+        function showZoomInputs() {
+            const container = document.getElementById("zoomStudents");
+            container.innerHTML = "";
+
+            const table = document.createElement("table");
+            students.forEach((student, index) => {
+                const row = table.insertRow();
+                const nameCell = row.insertCell(0);
+                const roomCell = row.insertCell(1);
+                nameCell.textContent = student;
+                roomCell.innerHTML = `<input type="text" id="room_${index}" placeholder="Room # or 'n'" />`;
+            });
+            container.appendChild(table);
+        }
+
+        function finalizeZoom() {
+            roomStatus = {};
+            for (let i = 0; i < students.length; i++) {
+                const roomInput = document.getElementById(`room_${i}`).value;
+                roomStatus[students[i]] = roomInput !== 'n' ? roomInput : 'Offline';
+            }
+            outputAssignments(true);
+        }
+
+        function showPencilInputs() {
+            const container = document.getElementById("pencilStudents");
+            container.innerHTML = "";
+
+            const table = document.createElement("table");
+            students.forEach((student, index) => {
+                const row = table.insertRow();
+                const nameCell = row.insertCell(0);
+                const onlineCell = row.insertCell(1);
+                nameCell.textContent = student;
+                onlineCell.innerHTML = `<input type="checkbox" id="online_${index}" /> Online`;
+            });
+            container.appendChild(table);
+        }
+
+        function finalizePencil() {
+            onlineStatus = {};
+            for (let i = 0; i < students.length; i++) {
+                const isChecked = document.getElementById(`online_${i}`).checked;
+                onlineStatus[students[i]] = isChecked;
+            }
+            outputAssignments(false);
+        }
+
+        function outputAssignments(isZoom) {
+            const output = document.getElementById("output");
+            output.innerHTML = "";
+
+            let onlineStudents = isZoom ? Object.keys(roomStatus).filter(s => roomStatus[s] !== 'Offline') : Object.keys(onlineStatus).filter(s => onlineStatus[s]);
+            const numTutors = prompt("How many tutors are online?");
+
+            if (!numTutors || isNaN(numTutors) || numTutors <= 0) {
+                output.innerHTML = "<div class='error'>Please enter a valid number of tutors.</div>";
+                return;
+            }
+
+            let assignments = {};
+            for (let i = 0; i < onlineStudents.length; i++) {
+                const tutorIndex = i % numTutors;
+                const tutorKey = `Tutor ${tutorIndex + 1}`;
+                if (!assignments[tutorKey]) assignments[tutorKey] = [];
+                assignments[tutorKey].push(onlineStudents[i]);
+            }
+
+            output.innerHTML += `<h2>${isZoom ? 'Zoom' : 'Pencil'} Assignments:</h2>`;
+            for (const tutor in assignments) {
+                const studentsList = isZoom ? assignments[tutor].map(s => `${s} in room ${roomStatus[s]}`).join(", ") : assignments[tutor].join(", ");
+                output.innerHTML += `<div>${tutor}: ${studentsList}</div>`;
+            }
+
+            output.classList.remove("hidden");
+
+            // Prompt to add new student after finalizing assignments
+            addNewStudentPrompt();
+        }
+
+    </script>
+</body>
+</html>
